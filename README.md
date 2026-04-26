@@ -204,6 +204,13 @@ The model strictly follows Vaswani et al. (2017). All components are implemented
 - *BLEU on 200 samples* — full validation BLEU would be more reliable but is slower.
 
 ---
+## Team Members
+
+- K V Shashank Pai (BT2024250)
+- K.Sai Tushaar (BT2024022)
+- Muppana Jatin (BT2024127)
+- Tejas Kollipara (BT2024147)
+---
 
 ## References
 
