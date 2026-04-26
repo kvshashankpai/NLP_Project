@@ -1,145 +1,213 @@
-# English → Hindi Transformer (from scratch)
+# English → Hindi Neural Machine Translation
 
-A complete PyTorch implementation of the original **"Attention Is All You Need"**
-Transformer architecture for English-to-Hindi neural machine translation.
-Every component is built manually — no `nn.Transformer`, no HuggingFace models.
+A from-scratch PyTorch implementation of the *Transformer* architecture (Vaswani et al., "Attention Is All You Need", 2017) for English-to-Hindi sequence-to-sequence translation. Every component — multi-head attention, cross-attention, positional encoding, layer normalisation, and feed-forward networks — is implemented manually without ⁠ torch.nn.Transformer ⁠.
 
 ---
 
-## File structure
+## Features
 
-```
-en_hi_transformer/
-├── utils.py          ← Building blocks: MHA, LayerNorm, PositionalEncoding, FFN, SentenceEmbedding
-├── encoder.py        ← EncoderLayer + SequentialEncoder + Encoder
-├── decoder.py        ← DecoderLayer (masked self-attn + cross-attn) + Decoder
-├── transformer.py    ← Full Transformer (Encoder + Decoder + linear head)
-├── dataset.py        ← Data loading, vocab building, mask generation
-├── metrics.py        ← Corpus BLEU from scratch
-├── train.py          ← Training loop with step-level progress bars + BLEU eval
-├── translate.py      ← Interactive inference (REPL or single sentence)
-├── requirements.txt
-└── checkpoints/      ← Saved during training
-    ├── en_vocab.json
-    ├── hi_vocab.json
+•⁠  ⁠Full Transformer encoder-decoder (6 layers, 8 heads, d_model=512) matching the original paper's base config
+•⁠  ⁠Separate BPE tokenisers (10K vocab each) trained on the corpus via HuggingFace ⁠ tokenizers ⁠
+•⁠  ⁠Three attention mask types: encoder padding, decoder causal, decoder cross-attention
+•⁠  ⁠Label-smoothed cross-entropy loss (ε=0.1) with Adam optimisation and gradient clipping
+•⁠  ⁠Live terminal progress bar with per-batch loss and perplexity
+•⁠  ⁠BLEU score evaluation on 200 validation samples after every epoch
+•⁠  ⁠Full checkpoint management: per-epoch saves, best-BLEU tracking, and ⁠ --resume ⁠ support
+•⁠  ⁠Interactive translation REPL and single-sentence inference mode
+
+---
+
+## Project Structure
+
+
+.
+├── utils.py          # Core building blocks: attention, FFN, LayerNorm, positional encoding, embeddings
+├── encoder.py        # EncoderLayer, SequentialEncoder, Encoder
+├── decoder.py        # DecoderLayer, SequentialDecoder, Decoder
+├── transformer.py    # Full Transformer model (encoder + decoder + output projection)
+├── dataset.py        # BPE tokeniser training, mask construction, TranslationDataset, data loading
+├── train.py          # Training script with progress bar, BLEU eval, and checkpointing
+├── translate.py      # Inference: greedy autoregressive decoding, interactive REPL
+└── checkpoints/      # Created automatically during training
+    ├── en_tokenizer.json
+    ├── hi_tokenizer.json
     ├── config.json
-    ├── best_model.pt
-    └── epoch_XX.pt
-```
+    ├── history.json
+    ├── epoch_01.pt
+    ├── ...
+    └── best_model.pt
+
 
 ---
 
-## Architecture
+## Installation
 
-Follows Vaswani et al. (2017) exactly:
+*Python 3.8+ required.*
 
-| Component | Detail |
-|---|---|
-| Embedding | Character-level + sinusoidal positional encoding |
-| Encoder | N × (Multi-Head Self-Attention → Add&Norm → FFN → Add&Norm) |
-| Decoder | N × (Masked Self-Attn → Add&Norm → Cross-Attn → Add&Norm → FFN → Add&Norm) |
-| Attention | Scaled dot-product; Q,K,V projected from one linear layer |
-| Layer Norm | Manual (learnable γ, β) |
-| FFN | Linear → ReLU → Dropout → Linear |
-| Output | Linear → Hindi vocabulary logits |
+⁠ bash
+pip install torch torchvision
+pip install datasets
+pip install tokenizers
+pip install sacrebleu
+ ⁠
 
-Default hyperparameters (matching the original paper):
+Or install everything at once:
 
-```
-d_model    = 512
-ffn_hidden = 2048
-num_heads  = 8
-num_layers = 6
-drop_prob  = 0.1
-```
-
----
-
-## Quick start
-
-### 1. Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 2. Train
-
-```bash
-python train.py \
-  --epochs 20 \
-  --batch_size 32 \
-  --max_samples 100000 \
-  --max_seq_len 200 \
-  --d_model 512 \
-  --num_heads 8 \
-  --num_layers 6 \
-  --checkpoint_dir checkpoints
-```
-
-For a fast smoke-test on CPU (smaller model):
-
-```bash
-python train.py --epochs 2 --max_samples 5000 --d_model 128 --num_heads 4 --num_layers 2 --batch_size 16
-```
-
-### 3. Terminal output during training
-
-```
-─────────────────────────────────────────────────────────────────
-  Epoch 1/20  —  14:32:01
-─────────────────────────────────────────────────────────────────
-  Step   200/3125  [██░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   6.4%  loss=5.1234  ppl=168.12  ETA 12:34
-  ...
-  ✅ Epoch 1 complete
-     avg_loss : 4.8321
-     ppl      : 125.44
-     time     : 15:22
-
-  📊 Computing BLEU on 200 validation samples …
-     BLEU : 0.0312 (3.12)
-
-     💾 Checkpoint → checkpoints/epoch_01.pt
-     🏆 New best BLEU=0.0312  → checkpoints/best_model.pt
-```
-
-### 4. Translate
-
-Interactive REPL:
-
-```bash
-python translate.py --checkpoint checkpoints/best_model.pt
-```
-
-Single sentence:
-
-```bash
-python translate.py --sentence "Hello, how are you?"
-```
+⁠ bash
+pip install torch datasets tokenizers sacrebleu
+ ⁠
 
 ---
 
 ## Dataset
 
-The training script downloads the **OPUS-100 English-Hindi** parallel corpus automatically
-via HuggingFace `datasets`. No manual download needed.
+Training uses the [cfilt/iitb-english-hindi](https://huggingface.co/datasets/cfilt/iitb-english-hindi) parallel corpus from IIT Bombay, loaded automatically from HuggingFace Datasets on first run. Up to 100,000 sentence pairs are used (shuffled, seed=42), split 90/10 into train and validation sets. Sentence pairs where either sentence exceeds ⁠ max_seq_len - 2 ⁠ tokens are filtered out.
 
 ---
 
-## BLEU metric
+## Training
 
-`metrics.py` implements corpus-level BLEU from scratch:
-- Modified n-gram precision for n = 1 … 4
-- Brevity penalty
-- Geometric mean with uniform weights
+⁠ bash
+python train.py
+ ⁠
 
-Character-level tokenisation is used (matching the model's vocabulary).
+All arguments are optional — defaults match the original Transformer base config:
+
+⁠ bash
+python train.py \
+  --epochs 20 \
+  --batch_size 32 \
+  --d_model 512 \
+  --ffn_hidden 2048 \
+  --num_heads 8 \
+  --num_layers 6 \
+  --drop_prob 0.1 \
+  --lr 1e-4 \
+  --max_seq_len 200 \
+  --max_samples 100000 \
+  --checkpoint_dir checkpoints
+ ⁠
+
+*Resume from a checkpoint:*
+
+⁠ bash
+python train.py --resume checkpoints/epoch_10.pt --epochs 20
+ ⁠
+
+Training output looks like this:
+
+
+=================================================================
+  English → Hindi Transformer  |  device: cuda
+=================================================================
+
+  Epoch 1/20  —  14:03:22
+  Step   250/2812  [███████░░░░░░░░░░░░░░░░░░░░░░░]  8.9%  loss=4.8821  ppl=132.01  ETA 18:42
+
+
+At the end of each epoch, 3 sample translations are printed alongside their references and a BLEU score is reported.
+
+### What gets saved
+
+| File | Contents |
+|---|---|
+| ⁠ checkpoints/en_tokenizer.json ⁠ | Trained English BPE tokeniser |
+| ⁠ checkpoints/hi_tokenizer.json ⁠ | Trained Hindi BPE tokeniser |
+| ⁠ checkpoints/config.json ⁠ | All training arguments |
+| ⁠ checkpoints/epoch_XX.pt ⁠ | Model + optimiser state, loss, BLEU |
+| ⁠ checkpoints/best_model.pt ⁠ | Checkpoint with highest validation BLEU |
+| ⁠ checkpoints/history.json ⁠ | Per-epoch loss and BLEU history |
 
 ---
 
-## Tips for better results
+## Inference
 
-- Train with `--max_samples 500000` if you have the data and GPU time
-- Use `--max_seq_len 150` to reduce memory pressure
-- The model needs at least 10–15 epochs to produce coherent Hindi
-- BLEU > 5 is achievable after ~20 epochs on 100k pairs with the default hyperparameters
+*Interactive REPL* — type English sentences, get Hindi translations:
+
+⁠ bash
+python translate.py --checkpoint checkpoints/best_model.pt
+ ⁠
+
+
+=======================================================
+  English → Hindi Translator  (type 'quit' to exit)
+=======================================================
+
+  English : The government announced a new policy today.
+  Hindi   : सरकार ने आज एक नई नीति की घोषणा की।
+
+  English : quit
+
+
+*Single sentence (non-interactive):*
+
+⁠ bash
+python translate.py \
+  --checkpoint checkpoints/best_model.pt \
+  --sentence "He went to the market."
+ ⁠
+
+*Custom checkpoint directory:*
+
+⁠ bash
+python translate.py \
+  --checkpoint my_run/best_model.pt \
+  --checkpoint_dir my_run
+ ⁠
+
+---
+
+## Model Architecture
+
+The model strictly follows Vaswani et al. (2017). All components are implemented in ⁠ utils.py ⁠, ⁠ encoder.py ⁠, and ⁠ decoder.py ⁠.
+
+| Hyperparameter | Default | Paper (base) |
+|---|---|---|
+| d_model | 512 | 512 |
+| FFN hidden dim | 2048 | 2048 |
+| Attention heads | 8 | 8 |
+| Encoder/Decoder layers | 6 | 6 |
+| Head dimension (d_k) | 64 | 64 |
+| Dropout | 0.1 | 0.1 |
+| Max sequence length | 200 | — |
+| Vocab size (EN / HI) | 10,000 each | 37K shared |
+| Total parameters | ~59.4M | ~65M |
+
+*Attention* uses an additive mask (0 = attend, −∞ = block) applied inside scaled dot-product attention before softmax. Three masks are built per batch:
+
+•⁠  ⁠*Encoder padding mask* — blocks ⁠ <PAD> ⁠ positions in the source
+•⁠  ⁠*Decoder causal mask* — upper-triangular block, prevents attending to future positions
+•⁠  ⁠*Decoder combined mask* — causal + target padding, merged via ⁠ torch.clamp ⁠
+
+---
+
+## Training Details
+
+| Setting | Value |
+|---|---|
+| Loss | Cross-entropy, label smoothing ε=0.1, ignore ⁠ <PAD> ⁠ |
+| Optimiser | Adam (β₁=0.9, β₂=0.98, ε=1e-9) |
+| Learning rate | 1e-4 (fixed) |
+| Gradient clipping | max norm = 1.0 |
+| Decoder input | Hindi with ⁠ <START> ⁠ prepended (teacher forcing) |
+| Decoder target | Hindi with ⁠ <END> ⁠ appended |
+| BLEU eval | Greedy decoding on 200 validation samples per epoch |
+
+---
+
+## Known Limitations
+
+•⁠  ⁠*No LR schedule* — the original paper uses a warm-up + inverse sqrt decay; this uses a fixed LR.
+•⁠  ⁠*Greedy decoding only* — ⁠ beam_size ⁠ is plumbed in ⁠ translate.py ⁠ but beam search is not implemented. Beam search (k=4) typically adds 1–3 BLEU points.
+•⁠  ⁠*No weight tying* — the output projection and Hindi embedding matrix are separate. Tying them reduces parameters and often improves performance.
+•⁠  ⁠*ReLU vs GELU* — the FFN uses ReLU; most modern implementations use GELU.
+•⁠  ⁠*BLEU on 200 samples* — full validation BLEU would be more reliable but is slower.
+
+---
+
+## References
+
+•⁠  ⁠Vaswani et al., Attention Is All You Need, NeurIPS 2017
+•⁠  ⁠Sennrich et al., Neural MT of Rare Words with Subword Units, ACL 2016
+•⁠  ⁠Kunchukuttan et al., The IIT Bombay English-Hindi Parallel Corpus, LREC 2018
+•⁠  ⁠Papineni et al., BLEU: a Method for Automatic Evaluation of MT, ACL 2002
