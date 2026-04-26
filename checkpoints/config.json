@@ -1,0 +1,14 @@
+{
+  "epochs": 20,
+  "resume": "checkpoints/epoch_18.pt",
+  "batch_size": 32,
+  "d_model": 512,
+  "ffn_hidden": 2048,
+  "num_heads": 8,
+  "num_layers": 6,
+  "drop_prob": 0.1,
+  "lr": 0.0001,
+  "max_seq_len": 200,
+  "max_samples": 100000,
+  "checkpoint_dir": "checkpoints"
+}

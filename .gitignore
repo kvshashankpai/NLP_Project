@@ -1,6 +1,5 @@
 __pycache__/
 venv/
-checkpoints/
 old_checkpoints/
 transformer_checkpoints/
 run.log
