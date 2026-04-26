@@ -1,6 +1,6 @@
 # English → Hindi Neural Machine Translation
 
-A from-scratch PyTorch implementation of the *Transformer* architecture (Vaswani et al., "Attention Is All You Need", 2017) for English-to-Hindi sequence-to-sequence translation. Every component — multi-head attention, cross-attention, positional encoding, layer normalisation, and feed-forward networks — is implemented manually without `torch.nn.Transformer`.
+A from-scratch PyTorch implementation of the **Transformer** architecture (Vaswani et al., "Attention Is All You Need", 2017) for English-to-Hindi sequence-to-sequence translation. Every component — multi-head attention, cross-attention, positional encoding, layer normalisation, and feed-forward networks — is implemented manually without `torch.nn.Transformer`.
 
 ---
 
@@ -19,7 +19,7 @@ A from-scratch PyTorch implementation of the *Transformer* architecture (Vaswani
 
 ## Project Structure
 
-```text
+```
 .
 ├── utils.py          # Core building blocks: attention, FFN, LayerNorm, positional encoding, embeddings
 ├── encoder.py        # EncoderLayer, SequentialEncoder, Encoder
@@ -42,7 +42,7 @@ A from-scratch PyTorch implementation of the *Transformer* architecture (Vaswani
 
 ## Installation
 
-*Python 3.8+ required.*
+**Python 3.8+ required.**
 
 ```bash
 pip install torch torchvision
@@ -88,7 +88,7 @@ python train.py \
   --checkpoint_dir checkpoints
 ```
 
-*Resume from a checkpoint:*
+**Resume from a checkpoint:**
 
 ```bash
 python train.py --resume checkpoints/epoch_10.pt --epochs 20
@@ -96,7 +96,7 @@ python train.py --resume checkpoints/epoch_10.pt --epochs 20
 
 Training output looks like this:
 
-```text
+```
 =================================================================
   English → Hindi Transformer  |  device: cuda
 =================================================================
@@ -122,13 +122,13 @@ At the end of each epoch, 3 sample translations are printed alongside their refe
 
 ## Inference
 
-*Interactive REPL* — type English sentences, get Hindi translations:
+**Interactive REPL** — type English sentences, get Hindi translations:
 
 ```bash
 python translate.py --checkpoint checkpoints/best_model.pt
 ```
 
-```text
+```
 =======================================================
   English → Hindi Translator  (type 'quit' to exit)
 =======================================================
@@ -139,7 +139,7 @@ python translate.py --checkpoint checkpoints/best_model.pt
   English : quit
 ```
 
-*Single sentence (non-interactive):*
+**Single sentence (non-interactive):**
 
 ```bash
 python translate.py \
@@ -147,7 +147,7 @@ python translate.py \
   --sentence "He went to the market."
 ```
 
-*Custom checkpoint directory:*
+**Custom checkpoint directory:**
 
 ```bash
 python translate.py \
@@ -173,11 +173,11 @@ The model strictly follows Vaswani et al. (2017). All components are implemented
 | Vocab size (EN / HI) | 10,000 each | 37K shared |
 | Total parameters | ~59.4M | ~65M |
 
-*Attention* uses an additive mask (0 = attend, −∞ = block) applied inside scaled dot-product attention before softmax. Three masks are built per batch:
+**Attention** uses an additive mask (0 = attend, −∞ = block) applied inside scaled dot-product attention before softmax. Three masks are built per batch:
 
-- *Encoder padding mask* — blocks `<PAD>` positions in the source
-- *Decoder causal mask* — upper-triangular block, prevents attending to future positions
-- *Decoder combined mask* — causal + target padding, merged via `torch.clamp`
+- **Encoder padding mask** — blocks `<PAD>` positions in the source
+- **Decoder causal mask** — upper-triangular block, prevents attending to future positions
+- **Decoder combined mask** — causal + target padding, merged via `torch.clamp`
 
 ---
 
@@ -197,24 +197,17 @@ The model strictly follows Vaswani et al. (2017). All components are implemented
 
 ## Known Limitations
 
-- *No LR schedule* — the original paper uses a warm-up + inverse sqrt decay; this uses a fixed LR.
-- *Greedy decoding only* — `beam_size` is plumbed in `translate.py` but beam search is not implemented. Beam search (k=4) typically adds 1–3 BLEU points.
-- *No weight tying* — the output projection and Hindi embedding matrix are separate. Tying them reduces parameters and often improves performance.
-- *ReLU vs GELU* — the FFN uses ReLU; most modern implementations use GELU.
-- *BLEU on 200 samples* — full validation BLEU would be more reliable but is slower.
+- **No LR schedule** — the original paper uses a warm-up + inverse sqrt decay; this uses a fixed LR.
+- **Greedy decoding only** — `beam_size` is plumbed in `translate.py` but beam search is not implemented. Beam search (k=4) typically adds 1–3 BLEU points.
+- **No weight tying** — the output projection and Hindi embedding matrix are separate. Tying them reduces parameters and often improves performance.
+- **ReLU vs GELU** — the FFN uses ReLU; most modern implementations use GELU.
+- **BLEU on 200 samples** — full validation BLEU would be more reliable but is slower.
 
----
-## Team Members
-
-- K V Shashank Pai (BT2024250)
-- K.Sai Tushaar (BT2024022)
-- Muppana Jatin (BT2024127)
-- Tejas Kollipara (BT2024147)
 ---
 
 ## References
 
-- Vaswani et al., Attention Is All You Need, NeurIPS 2017
-- Sennrich et al., Neural MT of Rare Words with Subword Units, ACL 2016
-- Kunchukuttan et al., The IIT Bombay English-Hindi Parallel Corpus, LREC 2018
-- Papineni et al., BLEU: a Method for Automatic Evaluation of MT, ACL 2002
+- Vaswani et al., *Attention Is All You Need*, NeurIPS 2017
+- Sennrich et al., *Neural MT of Rare Words with Subword Units*, ACL 2016
+- Kunchukuttan et al., *The IIT Bombay English-Hindi Parallel Corpus*, LREC 2018
+- Papineni et al., *BLEU: a Method for Automatic Evaluation of MT*, ACL 2002
